@@ -51,48 +51,26 @@ def start_looking(z,eta):
             return eta/2
     return
 
-
-if __name__ == '__main__':
-    filename = 'binary_classifier.sav'
-    binary_classifier = pickle.load(open(filename, 'rb'))
-    observation_to_interpret = [ 1.  , 90.  , 62.  , 12.  , 43.  , 27.2 ,  0.58, 24.  ] #this is just the first row of the test set. its result is 0
-    sample_space = [[0,17] , [0,199] , [0,122] , [0,99] , [0,846] , [0,67.1] , [0.08,2.42] , [21,81]]
-    radius_eta = 5 #hyperparameters
-    observations_n = 10 #hyperparameters
-    main_result = binary_classifier.predict([observation_to_interpret])
-
-
+def find_eta(radius_eta):
     eta = radius_eta
     z = make_z(eta,0,eta)
 
     while start_looking(z,eta)!=None:
         eta = start_looking(z,eta)
-        old_z = z
         z = make_z(eta,0,eta)
+    return eta,z
 
-
-    # ### Steps 6-12 Algorithm 1
-
-    a0 = eta
-    a1 = 2*eta
-
-    n_eta = radius_eta
-    o_z = z
+def find_enemy(a0,a1,z,eta):
     while 1:
         if not 1 in [binary_classifier.predict([i])[0] for i in z]:
-            o_z = z
             z = make_z(a1,a0,a1)
             a0=a1
             a1=a1+eta
         else:
             break
-    # print('')
+    return z[[binary_classifier.predict([i])[0] for i in z].index(1)]
 
-    enemy = z[[binary_classifier.predict([i])[0] for i in z].index(1)]
-
-
-    # ### Steps 1-7 Algorithm 2
-
+def find_enemy_star(enemy):
     get_indices = lambda x, xs: [i for (y, i) in zip(xs, range(len(xs))) if x == y]
 
     enemy_prime = enemy
@@ -106,6 +84,27 @@ if __name__ == '__main__':
         to_change = get_indices(min(to_minimize),to_minimize)
         for i in to_change:
             enemy_prime[i] = observation_to_interpret[i]
+    return enemy_star
+
+def find_counterfactual(radius_eta):
+    eta,z = find_eta(radius_eta)
+    # ### Steps 6-12 Algorithm 1
+    enemy = find_enemy(eta,2*eta,z,eta)
+    # ### Steps 1-7 Algorithm 2
+    enemy_star = find_enemy_star(enemy)
+    return enemy_star
+
+
+if __name__ == '__main__':
+    filename = 'binary_classifier.sav'
+    binary_classifier = pickle.load(open(filename, 'rb'))
+    observation_to_interpret = [ 1.  , 90.  , 62.  , 12.  , 43.  , 27.2 ,  0.58, 24.  ] #this is just the first row of the test set. its result is 0
+    sample_space = [[0,17] , [0,199] , [0,122] , [0,99] , [0,846] , [0,67.1] , [0.08,2.42] , [21,81]]
+    radius_eta = 5 #hyperparameters
+    observations_n = 10 #hyperparameters
+    main_result = binary_classifier.predict([observation_to_interpret])
+
+    enemy_star = find_counterfactual(radius_eta)
 
     print('Enemy:\t\t'+str(enemy_star))
     print('Original:\t'+str(observation_to_interpret))
