@@ -4,7 +4,7 @@
 import pickle
 import numpy as np
 
-def check_if_in_SL(z,low,high):
+def check_if_in_SL(z,low,high,observation_to_interpret):
     diff = np.subtract(observation_to_interpret, z)
     norm_val = np.linalg.norm(diff)
     if low <= norm_val and norm_val <= high:
@@ -29,7 +29,7 @@ def generate(eta,low,high,observation_to_interpret,sample_space,distance_flag=Fa
         if random_point[i]<sample_space[i][0]:
             random_point[i] = sample_space[i][0]
     # Make sure the point lies in the spherical layer else calculate again
-    if check_if_in_SL(random_point,low,high):
+    if check_if_in_SL(random_point,low,high,observation_to_interpret):
         if distance_flag:
             d = [np.square(observation_to_interpret[i]-random_point[i]) for i in range(len(random_point))]
             print(np.sqrt(np.sum(d)))
@@ -38,22 +38,22 @@ def generate(eta,low,high,observation_to_interpret,sample_space,distance_flag=Fa
         return call_generate(eta,low,high,observation_to_interpret,sample_space)
 def make_z(eta,low,high,observations_n,observation_to_interpret,sample_space):
     return [generate(eta,low,high,observation_to_interpret,sample_space) for i in range(observations_n)]
-def start_looking(z,eta,main_result):
+def start_looking(z,eta,main_result,binary_classifier):
     for i in z:
         if binary_classifier.predict([i])!=main_result:
             return eta/2
     return
 
-def find_eta(radius_eta,observations_n,observation_to_interpret,sample_space,main_result):
+def find_eta(radius_eta,observations_n,observation_to_interpret,sample_space,main_result,binary_classifier):
     eta = radius_eta
     z = make_z(eta,0,eta,observations_n,observation_to_interpret,sample_space)
 
-    while start_looking(z,eta,main_result)!=None:
-        eta = start_looking(z,eta,main_result)
+    while start_looking(z,eta,main_result,binary_classifier)!=None:
+        eta = start_looking(z,eta,main_result,binary_classifier)
         z = make_z(eta,0,eta,observations_n,observation_to_interpret,sample_space)
     return eta,z
 
-def find_enemy(a0,a1,z,binary_classifier,observations_n,observation_to_interpret):
+def find_enemy(a0,a1,z,binary_classifier,observations_n,observation_to_interpret,sample_space):
     eta = a0
     while 1:
         if not 1 in [binary_classifier.predict([i])[0] for i in z]:
@@ -83,9 +83,9 @@ def find_enemy_star(enemy,binary_classifier,main_result,observation_to_interpret
 def find_counterfactual(radius_eta,observations_n,binary_classifier,observation_to_interpret,sample_space):
     main_result = binary_classifier.predict([observation_to_interpret])
     # ### Steps 1-5 Algorithm 1
-    eta,z = find_eta(radius_eta,observations_n,observation_to_interpret,sample_space,main_result)
+    eta,z = find_eta(radius_eta,observations_n,observation_to_interpret,sample_space,main_result,binary_classifier)
     # ### Steps 6-12 Algorithm 1
-    enemy = find_enemy(eta,2*eta,z,binary_classifier,observations_n,observation_to_interpret)
+    enemy = find_enemy(eta,2*eta,z,binary_classifier,observations_n,observation_to_interpret,sample_space)
     # ### Steps 1-7 Algorithm 2
     enemy_star = find_enemy_star(enemy,binary_classifier,main_result,observation_to_interpret)
     return enemy_star
